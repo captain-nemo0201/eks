@@ -38,5 +38,5 @@ variable "tags" {
 variable "karpenter_chart_version" {
   description = "Karpenter Helm chart version (OCI: public.ecr.aws/karpenter/karpenter)"
   type        = string
-  default     = "1.0.0"
+  default     = "1.9.0"
 }

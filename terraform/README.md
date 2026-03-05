@@ -54,6 +54,16 @@ Then configure kubectl (command is also printed as an output):
 aws eks update-kubeconfig --region <REGION> --name <CLUSTER_NAME>
 kubectl get nodes
 ```
+---
+
+## Notes on Karpenter compatibility
+
+- This POC uses **Karpenter v1 APIs**:
+  - `apiVersion: karpenter.sh/v1` (`NodePool`)
+  - `apiVersion: karpenter.k8s.aws/v1` (`EC2NodeClass`)
+- CRDs are installed explicitly via the `karpenter-crd` Helm chart **before** installing the main controller chart.
+- If your cluster uses NetworkPolicies that block ingress to the `karpenter` namespace, you may need to allowlist webhook-related ports (see Karpenter upgrade notes).
+
 
 > The cluster comes with a small **system** managed node group (ON_DEMAND, arm64) with the taint  
 > `CriticalAddonsOnly=true:NoSchedule` so core add-ons + the Karpenter controller can always start.

@@ -12,6 +12,15 @@ module "eks" {
   cluster_endpoint_public_access = true
   enable_cluster_creator_admin_permissions = true
 
+  # Tag security groups for deterministic Karpenter discovery
+  cluster_security_group_tags = {
+    "karpenter.sh/discovery" = var.name
+  }
+
+  node_security_group_tags = {
+    "karpenter.sh/discovery" = var.name
+  }
+
   cluster_addons = {
     coredns = { most_recent = true }
     kube-proxy = { most_recent = true }

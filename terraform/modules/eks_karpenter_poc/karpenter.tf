@@ -31,6 +31,21 @@ resource "kubernetes_namespace" "karpenter" {
   }
 }
 
+resource "helm_release" "karpenter_crd" {
+  provider  = helm.this
+  name      = "karpenter-crd"
+  namespace = kubernetes_namespace.karpenter.metadata[0].name
+
+  repository = "oci://public.ecr.aws/karpenter"
+  chart      = "karpenter-crd"
+  version    = var.karpenter_chart_version
+
+  depends_on = [
+    module.eks,
+    kubernetes_namespace.karpenter
+  ]
+}
+
 resource "helm_release" "karpenter" {
   provider  = helm.this
   name      = "karpenter"
@@ -55,7 +70,8 @@ resource "helm_release" "karpenter" {
   depends_on = [
     module.eks,
     module.karpenter,
-    kubernetes_namespace.karpenter
+    kubernetes_namespace.karpenter,
+    helm_release.karpenter_crd
   ]
 }
 
@@ -71,7 +87,7 @@ resource "aws_eks_pod_identity_association" "karpenter" {
 resource "kubernetes_manifest" "ec2_node_class" {
   provider = kubernetes.this
   manifest = {
-    apiVersion = "karpenter.k8s.aws/v1beta1"
+    apiVersion = "karpenter.k8s.aws/v1"
     kind       = "EC2NodeClass"
     metadata = { name = "default" }
     spec = {
@@ -82,7 +98,7 @@ resource "kubernetes_manifest" "ec2_node_class" {
       ]
 
       securityGroupSelectorTerms = [
-        { tags = { "aws:eks:cluster-name" = module.eks.cluster_name } }
+        { tags = { "karpenter.sh/discovery" = var.name } }
       ]
 
       tags = merge(local.tags, {
@@ -97,7 +113,7 @@ resource "kubernetes_manifest" "ec2_node_class" {
 resource "kubernetes_manifest" "nodepool_arm64_spot" {
   provider = kubernetes.this
   manifest = {
-    apiVersion = "karpenter.sh/v1beta1"
+    apiVersion = "karpenter.sh/v1"
     kind       = "NodePool"
     metadata = { name = "arm64-spot" }
     spec = {
@@ -109,7 +125,11 @@ resource "kubernetes_manifest" "nodepool_arm64_spot" {
           }
         }
         spec = {
-          nodeClassRef = { name = "default" }
+          nodeClassRef = {
+            group = "karpenter.k8s.aws"
+            kind  = "EC2NodeClass"
+            name  = "default"
+          }
           requirements = [
             { key = "kubernetes.io/arch",           operator = "In", values = ["arm64"] },
             { key = "karpenter.sh/capacity-type",   operator = "In", values = ["spot"]  },
@@ -136,7 +156,7 @@ resource "kubernetes_manifest" "nodepool_arm64_spot" {
 resource "kubernetes_manifest" "nodepool_amd64_spot" {
   provider = kubernetes.this
   manifest = {
-    apiVersion = "karpenter.sh/v1beta1"
+    apiVersion = "karpenter.sh/v1"
     kind       = "NodePool"
     metadata = { name = "amd64-spot" }
     spec = {
@@ -148,7 +168,11 @@ resource "kubernetes_manifest" "nodepool_amd64_spot" {
           }
         }
         spec = {
-          nodeClassRef = { name = "default" }
+          nodeClassRef = {
+            group = "karpenter.k8s.aws"
+            kind  = "EC2NodeClass"
+            name  = "default"
+          }
           requirements = [
             { key = "kubernetes.io/arch",           operator = "In", values = ["amd64"] },
             { key = "karpenter.sh/capacity-type",   operator = "In", values = ["spot"]  },
